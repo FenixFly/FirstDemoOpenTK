@@ -14,13 +14,14 @@ using OpenTK;
 
 namespace Helicopter
 {
+    
     public partial class Form1 : Form
     {
         bool loaded = false;
 
-        float eyeX = 3.0f;
-        float eyeY = 4.0f;
-        float eyeZ = 5.0f;
+        float eyeX = 1.0f;
+        float eyeY = 6.0f;
+        float eyeZ = 1.5f;
 
         float directionX = 0.0f;
         float directionY = 0.0f;
@@ -29,6 +30,8 @@ namespace Helicopter
         float rotation = 0;
 
         int TextureID = -1;
+
+        Coin[] coins = new Coin[10];
 
         public Form1()
         {
@@ -41,6 +44,13 @@ namespace Helicopter
             SetupViewport();
             Application.Idle += Application_Idle;
             TextureID = loadTexture("texture_UNN.bmp");
+            Random R = new Random();
+            for (int i = 0; i < 10; i++)
+            {
+                Vector3 position = new Vector3(R.Next(20)-10,R.Next(20)-10,R.Next(2));
+                Vector3 normal = new Vector3 (R.Next(),R.Next(),0);
+                coins[i] = new Coin(0.5f, 0.2f, position, normal);
+            }
         }
         void Application_Idle(object sender, EventArgs e)
         {
@@ -89,8 +99,12 @@ namespace Helicopter
                                                     0, 0, 1);
             GL.MatrixMode(MatrixMode.Modelview);
             GL.LoadMatrix(ref projectionMat);
-            drawFigure();
             DrawGrid(Color.Green, 0, 0, -1, 1, 256);
+            GL.Color3(Color.Yellow);
+            for (int i=0;i<10;i++)
+                drawCylinder(coins[i].radius, coins[i].width, coins[i].center, coins[i].normal, 20, 1);
+            GL.Translate(directionX, directionY, directionZ);
+            drawFigure();
             glControl1.SwapBuffers();
         }
 
@@ -161,12 +175,24 @@ namespace Helicopter
             switch (e.KeyCode)
             {
                 case Keys.W:
+                    eyeX -= dX * 0.01f * length;
+                    eyeY -= dY * 0.01f * length;
+                    directionX -= dX * 0.01f * length;
+                    directionY -= dY * 0.01f * length;
                     break;
                 case Keys.S:
+                    eyeX += dX * 0.01f * length;
+                    eyeY += dY * 0.01f * length;
+                    directionX += dX * 0.01f * length;
+                    directionY += dY * 0.01f * length;
                     break;
                 case Keys.A:
+                    eyeX += dY * 0.01f;
+                    eyeY -= dX * 0.01f;
                     break;
                 case Keys.D:
+                    eyeX -= dY * 0.01f;
+                    eyeY += dX * 0.01f;
                     break;
             }
             glControl1.Invalidate();
@@ -198,7 +224,7 @@ namespace Helicopter
                 return -1;
             }
         }
-        
+
         public void DrawGrid(System.Drawing.Color color, float X, float Y, float Z, int cell_size = 1, int grid_size = 256)
         {
             int dX = (int)Math.Round(X / cell_size) * cell_size;
@@ -230,5 +256,71 @@ namespace Helicopter
 
             GL.PopMatrix();
         }
-    }
+
+        void drawCylinder(double radius, float width, Vector3 center, Vector3 normal, int nx, int ny)
+        {
+            int ix, iy;
+            double x, y, z;
+            GL.Translate(center);
+            if (normal != Vector3.UnitZ)
+            {
+                normal.Normalize();
+                GL.Rotate(57.2957795 * Math.Acos(normal.Z), new Vector3d(normal.Y, -normal.X, 0));
+            }
+            for (iy = 0; iy < ny; ++iy)
+            {
+                GL.Begin(BeginMode.QuadStrip);
+                for (ix = 0; ix <= nx; ++ix)
+                {
+                    x = radius * Math.Cos(2 * ix * Math.PI / nx);
+                    y = radius * Math.Sin(2 * ix * Math.PI / nx);
+                    z = iy / ny * width;
+                    GL.Normal3(x, y, 0);
+                    GL.TexCoord2((double)ix / (double)nx, (double)iy / (double)ny);
+                    GL.Vertex3(x, y, z);
+
+                    x = radius * Math.Cos(2 * ix * Math.PI / nx);
+                    y = radius * Math.Sin(2 * ix * Math.PI / nx);
+                    z = (iy + 1) / ny * width;
+                    GL.Normal3(x, y, 0);
+                    GL.TexCoord2((double)ix / (double)nx, (double)iy / (double)ny);
+                    GL.Vertex3(x, y, z);
+                }
+                GL.End();
+            }
+            for (int i = 0; i < 2; i++)
+            {
+                GL.Begin(BeginMode.TriangleFan);
+                GL.Vertex3(0, 0, i * width);
+                for (ix = 0; ix <= nx; ++ix)
+                {
+                    x = radius * Math.Cos(2 * ix * Math.PI / nx);
+                    y = radius * Math.Sin(2 * ix * Math.PI / nx);
+                    GL.Vertex3(x, y, i * width);
+                }
+                GL.End();
+            }
+            if (normal != Vector3.UnitZ)
+                GL.Rotate(-57.2957795 * Math.Acos(normal.Z), new Vector3d(normal.Y, -normal.X, 0));
+            GL.Translate(-center);
+        }
+    };
+
+    public class Coin
+    {
+        public double radius;
+        public float width;
+        public Vector3 center;
+        public Vector3 normal;
+        public bool touched;
+        public Coin(double newRadius, float newWidth, Vector3 newCenter, Vector3 newNormal)
+        {
+            this.radius = newRadius;
+            this.width = newWidth;
+            this.center = newCenter;
+            this.normal = newNormal;
+            this.touched = false;
+        }
+
+    };
 }
